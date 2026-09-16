@@ -633,15 +633,17 @@ async function controlDevice(device, state, mode = null) {
             const bodyData = { state };
             if (mode) bodyData.mode = mode;
 
-            await fetch(`${API_BASE}/api/control/${device}`, {
+            const res = await fetch(`${API_BASE}/api/control/${device}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(bodyData)
             });
 
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
             fetchSystemStatus();
         } catch (err) {
-            // Local state cache update fallback for static Vercel host
+            // Local state cache update fallback for static Vercel host or offline server
             if (stateCache.devices && stateCache.devices[device]) {
                 stateCache.devices[device].state = state;
                 if (mode) stateCache.devices[device].mode = mode;
@@ -652,16 +654,20 @@ async function controlDevice(device, state, mode = null) {
 }
 
 async function setLightMode(mode) {
-    const targetState = (mode === "FLICKER") ? "ON" : (stateCache.devices.light.state || "ON");
+    const currentState = (stateCache.devices && stateCache.devices.light) ? stateCache.devices.light.state : "OFF";
+    const targetState = (mode === "FLICKER") ? "ON" : (currentState === "OFF" ? "ON" : currentState);
     controlDevice("light", targetState, mode);
 }
 
 async function setFanSpeed(speed) {
-    controlDevice("fan", "ON", speed);
+    const currentState = (stateCache.devices && stateCache.devices.fan) ? stateCache.devices.fan.state : "OFF";
+    const targetState = (currentState === "OFF") ? "ON" : currentState;
+    controlDevice("fan", targetState, speed);
 }
 
 async function setPumpMode(mode) {
-    controlDevice("pump", stateCache.devices.pump.state, mode);
+    const currentState = (stateCache.devices && stateCache.devices.pump) ? stateCache.devices.pump.state : "OFF";
+    controlDevice("pump", currentState, mode);
 }
 
 async function updateSettings(threshold, eco_mode) {
@@ -1014,6 +1020,7 @@ async function pushSimulatedTelemetry(isAuto = false) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ soil_moisture, fire_detected })
         });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         
         const timestamp = new Date().toLocaleTimeString();
@@ -1021,7 +1028,26 @@ async function pushSimulatedTelemetry(isAuto = false) {
         
         fetchSystemStatus();
     } catch (err) {
-        appendSimLog(`❌ Error posting telemetry: ${err.message}`);
+        stateCache.telemetry.soil_moisture = soil_moisture;
+        stateCache.telemetry.fire_detected = fire_detected;
+        if (fire_detected) {
+            stateCache.devices.light.state = "ON";
+            stateCache.devices.light.mode = "FLICKER";
+            stateCache.devices.buzzer.state = "ON";
+            showNotification("🚨 FIRE EMERGENCY", "Fire detected! Emergency alarm and strobe light activated.", "🔥", "alert");
+        } else {
+            if (stateCache.devices.light.mode === "FLICKER") {
+                stateCache.devices.light.state = "OFF";
+                stateCache.devices.light.mode = "NORMAL";
+            }
+            if (stateCache.devices.buzzer.state === "ON") {
+                stateCache.devices.buzzer.state = "OFF";
+            }
+        }
+        renderUI();
+
+        const timestamp = new Date().toLocaleTimeString();
+        appendSimLog(`[${timestamp}] 📱 (Local Sim) Moisture: ${soil_moisture}%, Fire: ${fire_detected ? "YES 🚨" : "NO ✅"} | UI Updated`);
     }
 }
 
