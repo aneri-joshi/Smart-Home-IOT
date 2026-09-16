@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Home Automation System 2.0</title>
+    <meta name="description" content="Advanced IoT Smart Home Control Panel with WebSockets, Voice Commands, Eco-Irrigation, Analytics, and Scheduling.">
+    <link rel="stylesheet" href="styles.css?v=addons_v9">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div class="header-title">
+                <div class="header-icon">🏠</div>
+                <div>
+                    <h1>Smart Home Automation</h1>
+                    <div class="subtitle">IoT Real-Time Control & Sensor Analytics System</div>
+                </div>
+            </div>
+            
+            <div class="header-controls">
+                <!-- Weather Widget -->
+                <div class="weather-widget" id="weather-widget">
+                    <span class="weather-icon" id="weather-icon">🌤️</span>
+                    <div class="weather-info">
+                        <span class="weather-temp" id="weather-temp">26°C</span>
+                        <span class="weather-desc" id="weather-desc">Clear Sky</span>
+                    </div>
+                </div>
+
+                <!-- Voice Assistant Mic Button & Multi-Language Selector -->
+                <div class="voice-container-group" style="display: flex; gap: 0.4rem; align-items: center;">
+                    <button class="btn-voice" id="btn-voice" title="Click to use Voice Commands">
+                        <span class="mic-icon">🎤</span>
+                        <span class="voice-label">Voice Control</span>
+                    </button>
+                    <div class="voice-lang-pill">
+                        <span>🌐</span>
+                        <select id="voice-lang-select" title="Voice Language Select">
+                            <option value="en-US">EN</option>
+                            <option value="hi-IN">HI (हिंदी)</option>
+                            <option value="gu-IN">GU (ગુજરાતી)</option>
+                            <option value="es-ES">ES (Español)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- ESP32 Hardware Simulator Button -->
+                <button class="btn-sm btn-primary" id="btn-open-sim-modal" title="Open Virtual ESP32 Hardware Simulator" style="display: flex; align-items: center; gap: 0.4rem; padding: 0.5rem 0.9rem; border-radius: 30px;">
+                    <span>📱</span> ESP32 Simulator
+                </button>
+
+                <!-- Auth / Role Pill -->
+                <div class="auth-pill" id="auth-pill">
+                    <span id="user-role-badge" class="role-badge admin">ADMIN</span>
+                    <span id="username-display">admin</span>
+                    <button id="btn-login-logout" class="btn-sm">Logout</button>
+                </div>
+
+                <!-- Dark / Light Theme Toggle Pill -->
+                <button class="theme-toggle-pill" id="btn-theme-toggle" title="Toggle Light / Dark Neumorphic Mode">
+                    <span id="theme-icon">🌙</span>
+                    <span id="theme-label">Dark</span>
+                </button>
+
+                <!-- System Online Pill -->
+                <div class="system-status-pill" id="system-status">
+                    <div class="status-dot"></div>
+                    <span id="status-conn-text">WebSocket Live</span>
+                </div>
+            </div>
+        <!-- Real-Time Floating Toast Notifications Container -->
+        <div class="toast-container" id="toast-container"></div>
+
+        <!-- Voice Command Status Banner (hidden by default) -->
+        <div class="voice-banner" id="voice-banner">
+            <span class="voice-pulse">🔴</span> Listening for voice commands... (e.g. "Turn on light", "Turn off fan", "Silence alarm")
+        </div>
+
+        <!-- Dashboard Grid (4 Main Modules) -->
+        <main class="dashboard-grid">
+            
+            <!-- Module 1: Light Control -->
+            <section class="card" id="card-light">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span class="card-icon">💡</span> Light Control
+                    </div>
+                    <span class="device-badge" id="badge-light">OFF</span>
+                </div>
+                <div class="visual-display">
+                    <div class="bulb-glow" id="bulb-glow">💡</div>
+                </div>
+                <div class="mode-selector light-mode-selector">
+                    <button class="btn-mode active" id="light-mode-normal">NORMAL</button>
+                    <button class="btn-mode" id="light-mode-flicker">FLICKER 🚨</button>
+                </div>
+                <button class="btn-toggle btn-off" id="btn-toggle-light">Turn Light ON</button>
+            </section>
+
+            <!-- Module 2: Fan Control -->
+            <section class="card" id="card-fan">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span class="card-icon">🌀</span> Fan Control
+                    </div>
+                    <span class="device-badge" id="badge-fan">OFF</span>
+                </div>
+                <div class="visual-display">
+                    <div class="fan-spinner" id="fan-spinner">🌀</div>
+                </div>
+                <div class="fan-speed-container">
+                    <span class="speed-label">Speed Level:</span>
+                    <div class="mode-selector fan-speed-selector">
+                        <button class="btn-mode active" id="fan-speed-1">1</button>
+                        <button class="btn-mode" id="fan-speed-2">2</button>
+                        <button class="btn-mode" id="fan-speed-3">3</button>
+                        <button class="btn-mode" id="fan-speed-4">4</button>
+                    </div>
+                </div>
+                <button class="btn-toggle btn-off" id="btn-toggle-fan">Turn Fan ON</button>
+            </section>
+
+            <!-- Module 3: Fire Detection & Buzzer -->
+            <section class="card" id="card-fire">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span class="card-icon">🔥</span> Fire & Safety
+                    </div>
+                    <span class="device-badge active-safe" id="badge-fire">SAFE</span>
+                </div>
+                <div class="visual-display">
+                    <div class="fire-indicator" id="fire-indicator">
+                        <div class="fire-icon-large">🛡️</div>
+                        <div class="fire-status-text" id="fire-status-text">System Safe</div>
+                    </div>
+                </div>
+                <button class="btn-toggle btn-off" id="btn-toggle-buzzer">Buzzer Idle</button>
+            </section>
+
+            <!-- Module 4: Soil Moisture & Auto Water Pump -->
+            <section class="card" id="card-moisture">
+                <div class="card-header">
+                    <div class="card-title">
+                        <span class="card-icon">🌱</span> Soil & Water Pump
+                    </div>
+                    <span class="device-badge" id="badge-pump">IDLE</span>
+                </div>
+                <div class="visual-display">
+                    <div class="moisture-gauge-container">
+                        <div class="gauge-val" id="moisture-val">0%</div>
+                        <div class="progress-bar-bg">
+                            <div class="progress-bar-fill" id="moisture-bar"></div>
+                        </div>
+                    </div>
+                    <div class="threshold-control">
+                        <label for="threshold-slider" class="threshold-label">
+                            <span>Auto Threshold:</span>
+                            <span id="threshold-val" style="font-weight: 600; color: var(--accent-moisture)">30%</span>
+                        </label>
+                        <input type="range" id="threshold-slider" min="5" max="95" value="30">
+                        
+                        <div class="eco-toggle-container">
+                            <label for="chk-eco-mode" class="eco-label">
+                                <input type="checkbox" id="chk-eco-mode" checked> 🌧️ Eco-Irrigation (Pause if rain expected)
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mode-selector">
+                    <button class="btn-mode active" id="mode-auto">AUTO</button>
+                    <button class="btn-mode" id="mode-manual">MANUAL</button>
+                </div>
+                <button class="btn-toggle btn-off" id="btn-toggle-pump">Turn Pump ON</button>
+            </section>
+
+        </main>
+
+        <!-- Advanced Section: Analytics & Schedules (2 Columns) -->
+        <div class="advanced-grid">
+            <!-- Soil Moisture Analytics Chart -->
+            <section class="section-card">
+                <div class="section-header">
+                    <div class="section-title">
+                        <span>📈</span> Live Soil Moisture Analytics History
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="moisture-chart"></canvas>
+                </div>
+            </section>
+
+            <!-- Automated Device Schedules -->
+            <section class="section-card">
+                <div class="section-header">
+                    <div class="section-title">
+                        <span>⏱️</span> Automated Device Schedules
+                    </div>
+                    <button class="btn-sm btn-primary" id="btn-open-schedule-modal">+ Add Timer</button>
+                </div>
+                <div class="schedule-list" id="schedule-list">
+                    <!-- Dynamic schedule items -->
+                </div>
+            </section>
+        </div>
+
+        <!-- Energy & Power Consumption Calculator Card -->
+        <section class="section-card energy-card" style="margin-bottom: 1.8rem;">
+            <div class="section-header">
+                <div class="section-title">
+                    <span>⚡</span> Energy Consumption & Electricity Cost Calculator
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: var(--text-secondary);">
+                    <label for="tariff-input">Rate (₹/kWh):</label>
+                    <input type="number" id="tariff-input" value="8.0" step="0.5" style="width: 65px; padding: 0.2rem 0.4rem; border-radius: 6px; border: 1px solid var(--bg-card-border); background: var(--bg-main); color: var(--text-primary); font-weight: 700;">
+                </div>
+            </div>
+            <div class="energy-stats-grid">
+                <div class="energy-stat-box">
+                    <div class="stat-label">Active Power Load</div>
+                    <div class="stat-val" id="energy-active-watts">0 W</div>
+                    <div class="stat-sub" id="energy-breakdown-text">Light: 0W | Fan: 0W | Pump: 0W</div>
+                </div>
+                <div class="energy-stat-box">
+                    <div class="stat-label">Est. Daily Energy</div>
+                    <div class="stat-val" id="energy-daily-kwh">0.00 kWh</div>
+                    <div class="stat-sub">Based on runtime</div>
+                </div>
+                <div class="energy-stat-box highlight">
+                    <div class="stat-label">Est. Monthly Cost</div>
+                    <div class="stat-val" id="energy-monthly-cost">₹ 0.00</div>
+                    <div class="stat-sub" id="energy-tariff-sub">@ ₹8.00 / kWh rate</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- System Activity & Event Logs -->
+        <section class="log-section">
+            <div class="log-header">
+                <div class="log-title">
+                    <span>📜</span> Real-Time System Event Feed
+                </div>
+            </div>
+            <div class="log-feed" id="log-feed">
+                <!-- Log entries dynamically rendered -->
+            </div>
+        </section>
+    </div>
+
+    <!-- Login Modal -->
+    <div class="modal-overlay" id="login-modal">
+        <div class="modal-content">
+            <h2 class="modal-title">🔐 System Authentication</h2>
+            <p class="modal-subtitle">Log in as Admin (admin123) or Guest (guest123)</p>
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="login-username">Username</label>
+                    <input type="text" id="login-username" value="admin" required>
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" value="admin123" required>
+                </div>
+                <div class="form-error" id="login-error"></div>
+                <button type="submit" id="btn-submit-login" class="btn-action btn-on" style="width: 100%; margin-top: 1rem;">Login</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Schedule Add Modal -->
+    <div class="modal-overlay" id="schedule-modal">
+        <div class="modal-content">
+            <h2 class="modal-title">⏱️ Add Automated Schedule</h2>
+            <form id="schedule-form">
+                <div class="form-group">
+                    <label for="sched-device">Target Device</label>
+                    <select id="sched-device">
+                        <option value="light">Light</option>
+                        <option value="fan">Fan</option>
+                        <option value="pump">Water Pump</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="sched-state">Target State</label>
+                    <select id="sched-state">
+                        <option value="ON">Turn ON</option>
+                        <option value="OFF">Turn OFF</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="sched-time">Time (HH:MM)</label>
+                    <input type="time" id="sched-time" value="18:00" required>
+                </div>
+                <div style="display: flex; gap: 0.5rem; margin-top: 1.2rem;">
+                    <button type="button" class="btn-action btn-off" id="btn-close-sched-modal" style="flex:1">Cancel</button>
+                    <button type="submit" class="btn-action btn-on" style="flex:1">Save Schedule</button>
+                </div>
+            </form>
+    <!-- Virtual ESP32 Hardware Simulator Modal -->
+    <div class="modal-overlay" id="esp32-sim-modal">
+        <div class="modal-content" style="max-width: 480px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
+                <h2 class="modal-title" style="margin-bottom:0;">📱 ESP32 Hardware Simulator</h2>
+                <button type="button" id="btn-close-sim-modal-x" class="btn-del" style="font-weight: bold;">✕</button>
+            </div>
+            <p class="modal-subtitle">Simulate real-time ESP32 micro-controller sensor hardware and test IoT server payloads</p>
+            
+            <form id="sim-form">
+                <!-- Soil Moisture ADC Simulator -->
+                <div class="form-group">
+                    <label style="display: flex; justify-content: space-between;">
+                        <span>🌱 Soil Moisture Sensor (Analog ADC):</span>
+                        <b id="sim-moisture-val" style="color: var(--accent-blue-primary)">45%</b>
+                    </label>
+                    <input type="range" id="sim-moisture-slider" min="0" max="100" value="45">
+                </div>
+
+                <!-- Flame Sensor Simulator -->
+                <div class="form-group" style="margin-top: 1rem;">
+                    <label style="display: flex; justify-content: space-between; align-items: center; gap: 0.5rem;">
+                        <span>🔥 Flame/Smoke Sensor State:</span>
+                        <div class="mode-selector" style="width: 170px; margin-bottom: 0;">
+                            <button type="button" class="btn-mode active" id="sim-flame-safe">NORMAL</button>
+                            <button type="button" class="btn-mode" id="sim-flame-fire">FIRE 🚨</button>
+                        </div>
+                    </label>
+                </div>
+
+                <!-- Auto Streaming Loop Switch -->
+                <div style="margin-top: 1rem; margin-bottom: 1rem; font-size: 0.8rem; color: var(--text-secondary);">
+                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                        <input type="checkbox" id="sim-auto-loop"> 🔄 Auto Telemetry Stream Pings (Every 3 sec)
+                    </label>
+                </div>
+
+                <div class="sim-terminal" id="sim-terminal-log">
+                    [ESP32 Simulator] Ready. Click "Push Telemetry" to simulate hardware POST.
+                </div>
+
+                <div style="display: flex; gap: 0.5rem; margin-top: 1.2rem;">
+                    <button type="button" class="btn-action btn-off" id="btn-close-sim-modal" style="flex:1">Close</button>
+                    <button type="submit" class="btn-action btn-on" style="flex:1">Push Telemetry</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="app.js?v=addons_v9"></script>
+</body>
+</html>
